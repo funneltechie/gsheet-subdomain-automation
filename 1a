@@ -1,0 +1,41 @@
+function myFunction(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1"); // Ensure correct sheet
+  var lastRow = sheet.getLastRow();
+  var webhookUrl = "https://hook.us1.make.com/9p7hiqhlhwflf8r3dps4nfi8voin73wy"; // Your Make webhook
+  
+  var rowsToSend = []; // Store all rows that need to be sent
+
+  for (var row = 286; row <= lastRow; row++) {
+    var colA = sheet.getRange(row, 1).getValue(); // Check column A (trigger column)
+    var colG = sheet.getRange(row, 7).getValue(); // Check column G
+    var colH = sheet.getRange(row, 8).getValue(); // Check Column H for "Sent" status
+
+    // If column A has data and G is empty, auto-fill it
+    if (colA !== "" && colG === "") {
+      sheet.getRange(row, 7).setValue("sndr" + (row - 1)); // Auto-fill G
+    }
+
+    // Store row data for sending if it's newly added and not sent before
+    if (colA !== "" && colH !== "Sent") {
+      var rowData = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+      rowsToSend.push({
+        "rowNumber": row,
+        "data": rowData
+      });
+
+      // Mark row as "Sent" in Column H to prevent duplicate sending
+      sheet.getRange(row, 8).setValue("Sent");
+    }
+  }
+
+  // Send all new row data as a single batch request to Make
+  if (rowsToSend.length > 0) {
+    var payload = JSON.stringify(rowsToSend);
+    var options = {
+      "method": "post",
+      "contentType": "application/json",
+      "payload": payload
+    };
+    UrlFetchApp.fetch(webhookUrl, options);
+  }
+}
